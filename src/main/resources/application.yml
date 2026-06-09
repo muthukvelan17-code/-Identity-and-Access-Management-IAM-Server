@@ -1,0 +1,95 @@
+spring:
+  application:
+    name: authentication-server
+  
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:auth_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  # JPA / Hibernate Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update # In production, use 'validate' with Flyway/Liquibase
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 60000
+
+# Server Configuration
+server:
+  port: 9000
+  servlet:
+    context-path: /
+  # SSL Configuration (Enable for production)
+  # ssl:
+  #   enabled: true
+  #   key-store: classpath:keystore.jks
+  #   key-store-password: ${KEYSTORE_PASSWORD}
+  #   key-password: ${KEY_PASSWORD}
+
+# MFA Configuration
+mfa:
+  totp:
+    issuer: EnterpriseIdP
+  twilio:
+    account-sid: ${TWILIO_ACCOUNT_SID:}
+    auth-token: ${TWILIO_AUTH_TOKEN:}
+    phone-number: ${TWILIO_PHONE_NUMBER:}
+  sendgrid:
+    api-key: ${SENDGRID_API_KEY:}
+    from-email: ${SENDGRID_FROM_EMAIL:no-reply@enterprise.com}
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: TRACE
+    com.enterprise.auth: DEBUG
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:7v9y$B&E)H@McQfTjWnZr4u7x!A%C*F-JaNdRgUkXp2s5v8y/B?E(G+KbPeShVmY}
+  expiration-ms: 3600000 # 1 hour
+  refresh-expiration-ms: 86400000 # 24 hours
+  issuer: http://localhost:9000
+
+# OpenAPI/Swagger Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  
+  datasource:
+    url: jdbc:h2:mem:auth_db;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: password
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration

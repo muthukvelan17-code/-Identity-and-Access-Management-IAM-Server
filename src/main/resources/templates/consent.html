@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Consent Required</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .consent-box { background-color: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 400px; }
+        h2 { margin-top: 0; color: #333; }
+        p { color: #666; }
+        .scope-list { margin: 1rem 0; padding: 0; list-style-type: none; }
+        .scope-list li { margin-bottom: 0.5rem; }
+        .btn-container { display: flex; justify-content: space-between; margin-top: 1.5rem; }
+        button { padding: 0.5rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-submit { background-color: #0056b3; color: white; }
+        .btn-cancel { background-color: #ccc; color: #333; }
+    </style>
+</head>
+<body>
+<div class="consent-box">
+    <h2>Application Authorization</h2>
+    <p>The application <strong><span th:text="${clientName}"></span></strong> is requesting access to your account (<strong><span th:text="${principalName}"></span></strong>).</p>
+    
+    <form method="post" th:action="@{/oauth2/authorize}">
+        <input type="hidden" name="client_id" th:value="${clientId}">
+        <input type="hidden" name="state" th:value="${state}">
+
+        <p>Please review the requested permissions:</p>
+        <ul class="scope-list">
+            <li th:each="scope : ${scopes}">
+                <input type="checkbox" name="scope" th:value="${scope}" th:id="${scope}" checked>
+                <label th:for="${scope}" th:text="${scope}"></label>
+            </li>
+        </ul>
+
+        <div th:if="${not #lists.isEmpty(previouslyApprovedScopes)}">
+            <p>You have already approved the following permissions:</p>
+            <ul class="scope-list">
+                <li th:each="scope : ${previouslyApprovedScopes}">
+                    <input type="checkbox" name="scope" th:value="${scope}" th:id="${scope}" checked disabled>
+                    <label th:for="${scope}" th:text="${scope}"></label>
+                </li>
+            </ul>
+        </div>
+
+        <div class="btn-container">
+            <button class="btn-cancel" type="button" onclick="cancelConsent();">Deny</button>
+            <button class="btn-submit" type="submit" id="submit-consent">Authorize</button>
+        </div>
+    </form>
+</div>
+<script>
+    function cancelConsent() {
+        document.getElementById('submit-consent').click();
+    }
+</script>
+</body>
+</html>
