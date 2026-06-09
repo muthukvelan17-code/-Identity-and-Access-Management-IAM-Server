@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final com.enterprise.auth.service.OtpService otpService;
 
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@Valid @RequestBody RegisterRequest request) {
@@ -46,5 +47,21 @@ public class AuthController {
     public ResponseEntity<?> resetPassword(@RequestParam String token, @RequestParam String newPassword) {
         authService.resetPassword(token, newPassword);
         return ResponseEntity.ok("Password reset successfully");
+    }
+
+    @PostMapping("/send-otp")
+    public ResponseEntity<?> sendOtp(@RequestParam String username, @RequestParam String target, @RequestParam String type) {
+        otpService.generateAndSendOtp(username, target, type);
+        return ResponseEntity.ok("OTP sent successfully");
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@RequestParam String username, @RequestParam String code, @RequestParam String type) {
+        boolean isValid = otpService.verifyOtp(username, code, type);
+        if (isValid) {
+            return ResponseEntity.ok("OTP verified successfully");
+        } else {
+            return ResponseEntity.badRequest().body("Invalid or expired OTP");
+        }
     }
 }
