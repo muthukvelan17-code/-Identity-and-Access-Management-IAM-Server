@@ -74,4 +74,23 @@ public class JwtUtils {
         }
         return false;
     }
+
+    public String generateJwtTokenFromUsername(String username, List<String> roles) {
+        return Jwts.builder()
+                .subject(username)
+                .claim("roles", roles)
+                .issuedAt(new Date())
+                .expiration(new Date((new Date()).getTime() + jwtExpirationMs))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    public String generateRefreshTokenFromUsername(String username) {
+        return Jwts.builder()
+                .subject(username)
+                .issuedAt(new Date())
+                .expiration(new Date((new Date()).getTime() + refreshExpirationMs))
+                .signWith(getSigningKey())
+                .compact();
+    }
 }

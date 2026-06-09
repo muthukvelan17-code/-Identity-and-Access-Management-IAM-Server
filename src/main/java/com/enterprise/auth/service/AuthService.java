@@ -118,4 +118,72 @@ public class AuthService {
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
     }
+
+    @Transactional
+    public void changePassword(String username, String oldPassword, String newPassword) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new IllegalArgumentException("Incorrect old password");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void updateProfile(String username, String email) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (!user.getEmail().equalsIgnoreCase(email) && userRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("Email already in use by another user");
+        }
+
+        user.setEmail(email);
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void deleteAccount(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        userRepository.delete(user);
+    }
+
+    @Transactional
+    public void toggleMfa(String username, boolean enabled) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        user.setMfaEnabled(enabled);
+        if (enabled && (user.getMfaSecret() == null || user.getMfaSecret().isEmpty())) {
+            user.setMfaSecret(mfaService.generateSecretKey());
+        }
+        userRepository.save(user);
+    }
+
+    public TokenResponse refreshToken(String refreshToken) {
+        if (!jwtUtils.validateJwtToken(refreshToken)) {
+            throw new IllegalArgumentException("Invalid refresh token");
+        }
+
+        String username = jwtUtils.getUserNameFromJwtToken(refreshToken);
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        java.util.List<String> roles = user.getRoles().stream()
+                .map(com.enterprise.auth.entity.Role::getRoleName)
+                .collect(java.util.stream.Collectors.toList());
+
+        String newAccessToken = jwtUtils.generateJwtTokenFromUsername(username, roles);
+        String newRefreshToken = jwtUtils.generateRefreshTokenFromUsername(username);
+
+        return TokenResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .tokenType("Bearer")
+                .expiresIn(3600000L) // 1 hr in ms
+                .build();
+    }
 }
