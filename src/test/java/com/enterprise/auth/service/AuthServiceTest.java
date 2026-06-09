@@ -30,6 +30,15 @@ class AuthServiceTest {
     private UserRepository userRepository;
 
     @Mock
+    private com.enterprise.auth.repository.RoleRepository roleRepository;
+
+    @Mock
+    private com.enterprise.auth.repository.PasswordResetTokenRepository passwordResetTokenRepository;
+
+    @Mock
+    private MfaService mfaService;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Mock
@@ -61,6 +70,10 @@ class AuthServiceTest {
         when(userRepository.existsByUsername(registerRequest.getUsername())).thenReturn(false);
         when(userRepository.existsByEmail(registerRequest.getEmail())).thenReturn(false);
         when(passwordEncoder.encode(registerRequest.getPassword())).thenReturn("hashed_password");
+        
+        com.enterprise.auth.entity.Role role = new com.enterprise.auth.entity.Role();
+        role.setRoleName("ROLE_USER");
+        when(roleRepository.findByRoleName("ROLE_USER")).thenReturn(Optional.of(role));
 
         authService.register(registerRequest);
 
