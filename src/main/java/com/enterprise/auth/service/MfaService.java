@@ -2,15 +2,46 @@ package com.enterprise.auth.service;
 
 import de.taimos.totp.TOTP;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base32;
 import org.apache.commons.codec.binary.Hex;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.twilio.Twilio;
+import com.twilio.rest.api.v2010.account.Message;
+import com.twilio.type.PhoneNumber;
+
+import com.sendgrid.Method;
+import com.sendgrid.Request;
+import com.sendgrid.Response;
+import com.sendgrid.SendGrid;
+import com.sendgrid.helpers.mail.Mail;
+import com.sendgrid.helpers.mail.objects.Content;
+import com.sendgrid.helpers.mail.objects.Email;
+
+import java.io.IOException;
 import java.security.SecureRandom;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MfaService {
+
+    @Value("${mfa.twilio.account-sid:}")
+    private String twilioAccountSid;
+
+    @Value("${mfa.twilio.auth-token:}")
+    private String twilioAuthToken;
+
+    @Value("${mfa.twilio.phone-number:}")
+    private String twilioFromNumber;
+
+    @Value("${mfa.sendgrid.api-key:}")
+    private String sendGridApiKey;
+
+    @Value("${mfa.sendgrid.from-email:no-reply@enterprise.com}")
+    private String sendGridFromEmail;
 
     // Helper to generate a new base32 secret for TOTP
     public String generateSecretKey() {
@@ -35,15 +66,51 @@ public class MfaService {
         return serverCode.equals(userCode);
     }
 
-    // Placeholder for SMS logic via Twilio
+    // SMS logic via Twilio
     public void sendSmsOtp(String phoneNumber, String otp) {
-        // Implementation logic using Twilio API
-        System.out.println("Sending OTP " + otp + " via SMS to " + phoneNumber);
+        if (twilioAccountSid.isEmpty() || twilioAuthToken.isEmpty() || twilioFromNumber.isEmpty()) {
+            log.warn("[LOCAL DEV FALLBACK] SMS OTP to {}: {}", phoneNumber, otp);
+            System.out.println("Sending OTP " + otp + " via SMS to " + phoneNumber);
+            return;
+        }
+
+        try {
+            Twilio.init(twilioAccountSid, twilioAuthToken);
+            Message.creator(
+                    new PhoneNumber(phoneNumber),
+                    new PhoneNumber(twilioFromNumber),
+                    "Your enterprise verification code is: " + otp
+            ).create();
+            log.info("Twilio SMS OTP sent successfully to {}", phoneNumber);
+        } catch (Exception e) {
+            log.error("Failed to send Twilio SMS OTP to {}: {}", phoneNumber, e.getMessage());
+        }
     }
 
-    // Placeholder for Email logic via SendGrid
+    // Email logic via SendGrid
     public void sendEmailOtp(String email, String otp) {
-        // Implementation logic using SendGrid API
-        System.out.println("Sending OTP " + otp + " via Email to " + email);
+        if (sendGridApiKey.isEmpty()) {
+            log.warn("[LOCAL DEV FALLBACK] Email OTP to {}: {}", email, otp);
+            System.out.println("Sending OTP " + otp + " via Email to " + email);
+            return;
+        }
+
+        Email from = new Email(sendGridFromEmail);
+        String subject = "Your Enterprise Verification Code";
+        Email to = new Email(email);
+        Content content = new Content("text/plain", "Your verification code is: " + otp);
+        Mail mail = new Mail(from, subject, to, content);
+
+        SendGrid sg = new SendGrid(sendGridApiKey);
+        Request request = new Request();
+        try {
+            request.setMethod(Method.POST);
+            request.setEndpoint("mail/send");
+            request.setBody(mail.build());
+            Response response = sg.api(request);
+            log.info("SendGrid Email OTP sent successfully to {} (Status Code: {})", email, response.getStatusCode());
+        } catch (IOException ex) {
+            log.error("Failed to send SendGrid Email OTP to {}: {}", email, ex.getMessage());
+        }
     }
 }
